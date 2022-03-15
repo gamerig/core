@@ -10,7 +10,14 @@
   "scripts": {
     "test": "echo \"Error: no test specified\"",
     "dev": "rollup -c -w",
-    "build": "rollup -c"
+    "build": "rollup -c",
+    "format": "prettier --write \"src/**/*.ts\"",
+    "lint": "eslint --ext .ts .",
+    "prepare": "npm run build",
+    "prepublishOnly" : "npm test && npm run lint",
+    "preversion" : "npm run lint",
+    "version" : "npm run format && git add -A src",
+    "postversion" : "git push && git push --tags"
   },
   "repository": {
     "type": "git",
