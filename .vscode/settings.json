@@ -1,0 +1,12 @@
+{
+  "editor.formatOnSave": true,
+  "workbench.tree.indent": 24,
+  "eslint.format.enable": true,
+  "eslint.options": {
+    "overrideConfigFile": ".eslintrc.js"
+  },
+  "prettier.configPath": ".prettierrc",
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": true
+  }
+}
