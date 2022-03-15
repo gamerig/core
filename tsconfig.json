@@ -8,8 +8,6 @@
     "removeComments": false,
     "strict": true,
     "noImplicitAny": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
     "noImplicitReturns": true,
     "strictNullChecks": false,
     "allowSyntheticDefaultImports": true,

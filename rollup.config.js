@@ -14,7 +14,7 @@ export default [
   {
     input: 'src/index.ts',
     output: {
-      name: 'Gamerig',
+      name: 'Gamerig.Core',
       file: pkg.browser,
       format: 'umd',
       sourcemap: !production,
@@ -39,6 +39,7 @@ export default [
       { file: pkg.main, format: 'cjs', sourcemap: !production },
       { file: pkg.module, format: 'es', sourcemap: !production },
     ],
+    external: ['eventemitter2'],
   },
   // bundle all type definitions into one file
   {
