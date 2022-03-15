@@ -13,9 +13,6 @@
     "build": "rollup -c",
     "format": "prettier --write 'src/**/*.ts'",
     "lint": "eslint 'src/**/*.ts'",
-    "prepublish:npm": "npm run build",
-    "publish:npm": "npm publish --access public",
-    "prerelease": "npm run build",
     "release": "release-it"
   },
   "repository": {
@@ -58,5 +55,8 @@
   },
   "dependencies": {
     "eventemitter2": "^6.4.5"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }
