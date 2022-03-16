@@ -15,7 +15,7 @@ export default [
     input: 'src/index.ts',
     output: {
       name: 'Gamerig.Core',
-      file: pkg.browser,
+      file: 'dist/browser/gamerig.core.min.js',
       format: 'umd',
       sourcemap: !production,
     },
@@ -26,8 +26,13 @@ export default [
       }),
       resolve(),
       commonjs(),
-      typescript({ tsconfig: './tsconfig.json' }),
-      production ? terser() : undefined,
+      typescript({ tsconfig: './tsconfig.json', declaration: true, declarationDir: './dts' }),
+      production &&
+        terser({
+          format: {
+            comments: false,
+          },
+        }),
     ],
   },
 
@@ -43,12 +48,12 @@ export default [
   },
   // bundle all type definitions into one file
   {
-    input: 'dist/dts/index.d.ts',
+    input: 'dist/browser/dts/index.d.ts',
     output: [{ file: 'dist/index.d.ts', format: 'es' }],
     plugins: [
       dts(),
       del({
-        targets: ['./dist/dts'],
+        targets: ['./dist/browser/dts'],
         hook: 'buildEnd',
       }),
     ],

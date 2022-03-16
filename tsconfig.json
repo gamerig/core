@@ -11,8 +11,6 @@
     "noImplicitReturns": true,
     "strictNullChecks": false,
     "allowSyntheticDefaultImports": true,
-    "declaration": true,
-    "declarationDir": "./dts",
     "outDir": "dist"
   },
   "include": ["src/**/*"],
