@@ -1,11 +1,13 @@
 {
   "name": "@gamerig/core",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Gamerig's core game engine",
   "main": "dist/cjs/index.cjs.js",
   "module": "dist/esm/index.esm.js",
   "types": "dist/index.d.ts",
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "test": "echo \"Error: no test specified\"",
     "dev": "rollup -c -w",
