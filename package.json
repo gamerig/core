@@ -1,6 +1,6 @@
 {
   "name": "@gamerig/core",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "Gamerig's core game engine",
   "main": "dist/cjs/index.js",
   "module": "dist/esm/index.js",
