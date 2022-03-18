@@ -10,7 +10,6 @@ import pkg from './package.json';
 const production = !process.env.ROLLUP_WATCH;
 
 export default [
-  // browser-friendly UMD build
   {
     input: 'src/index.ts',
     output: {
