@@ -1,9 +1,11 @@
+const path = require('path');
+
 module.exports = {
   root: true,
   overrides: [
     {
       files: ['**/*.ts'],
-      parserOptions: { project: './tsconfig.eslint.json' },
+      parserOptions: { project: path.resolve(__dirname, 'tsconfig.eslint.json') },
     },
   ],
   parser: '@typescript-eslint/parser',
