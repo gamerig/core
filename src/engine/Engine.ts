@@ -118,9 +118,17 @@ export class Engine implements IEngine {
 
     this._isProcessing = true;
 
+    this.messaging.publish(EngineEvent.BeforeUpdate, this, delta);
+
     this._systems.update(delta);
 
+    this.messaging.publish(EngineEvent.AfterUpdate, this, delta);
+
+    this.messaging.publish(EngineEvent.BeforeRender, this);
+
     this._systems.render();
+
+    this.messaging.publish(EngineEvent.AfterRender, this);
 
     this._isProcessing = false;
   };

@@ -95,16 +95,16 @@ export class SceneManager implements ISceneManager, Updateable, Renderable {
     this.enqueueOp({ fn: this._moveDown, args: [key] });
   }
 
-  moveAbove(key: string, targetKey: string): void {
-    this.enqueueOp({ fn: this._moveAbove, args: [key, targetKey] });
+  moveAbove(subject: string, target: string): void {
+    this.enqueueOp({ fn: this._moveAbove, args: [subject, target] });
   }
 
-  moveBelow(key: string, targetKey: string): void {
-    this.enqueueOp({ fn: this._moveBelow, args: [key, targetKey] });
+  moveBelow(subject: string, target: string): void {
+    this.enqueueOp({ fn: this._moveBelow, args: [subject, target] });
   }
 
-  swap(key: string, targetKey: string): void {
-    this.enqueueOp({ fn: this._swap, args: [key, targetKey] });
+  swap(subject: string, target: string): void {
+    this.enqueueOp({ fn: this._swap, args: [subject, target] });
   }
 
   getScene(key: string): Scene | undefined {
@@ -324,7 +324,7 @@ export class SceneManager implements ISceneManager, Updateable, Renderable {
     if (scene) {
       const index = this._scenes.indexOf(scene);
 
-      if (index !== -1 && index !== this._scenes.length - 1) {
+      if (index !== -1 && index < this._scenes.length) {
         this._scenes.splice(index, 1);
         this._scenes.push(scene);
       }
@@ -344,32 +344,32 @@ export class SceneManager implements ISceneManager, Updateable, Renderable {
     }
   };
 
-  private _moveAbove = (key: string, otherKey: string): void => {
-    const scene = this._lookup.get(key);
-    const otherScene = this._lookup.get(otherKey);
+  private _moveAbove = (subjectKey: string, targetKey: string): void => {
+    const targetScene = this._lookup.get(targetKey);
+    const subjectScene = this._lookup.get(subjectKey);
 
-    if (scene && otherScene) {
-      const index = this._scenes.indexOf(scene);
-      const otherIndex = this._scenes.indexOf(otherScene);
+    if (targetScene && subjectScene) {
+      const targetIndex = this._scenes.indexOf(targetScene);
+      const subjectIndex = this._scenes.indexOf(subjectScene);
 
-      if (index !== -1 && otherIndex !== -1) {
-        this._scenes.splice(index, 1);
-        this._scenes.splice(otherIndex + 1, 0, scene);
+      if (targetIndex !== -1 && subjectIndex !== -1) {
+        this._scenes.splice(subjectIndex, 1);
+        this._scenes.splice(targetIndex + 1, 0, subjectScene);
       }
     }
   };
 
-  private _moveBelow = (key: string, otherKey: string): void => {
-    const scene = this._lookup.get(key);
-    const otherScene = this._lookup.get(otherKey);
+  private _moveBelow = (subjectKey: string, targetKey: string): void => {
+    const targetScene = this._lookup.get(targetKey);
+    const subjectScene = this._lookup.get(subjectKey);
 
-    if (scene && otherScene) {
-      const index = this._scenes.indexOf(scene);
-      const otherIndex = this._scenes.indexOf(otherScene);
+    if (targetScene && subjectScene) {
+      const targetIndex = this._scenes.indexOf(targetScene);
+      const subjectIndex = this._scenes.indexOf(subjectScene);
 
-      if (index !== -1 && otherIndex !== -1) {
-        this._scenes.splice(index, 1);
-        this._scenes.splice(otherIndex, 0, scene);
+      if (targetIndex !== -1 && subjectIndex !== -1) {
+        this._scenes.splice(subjectIndex, 1);
+        this._scenes.splice(targetIndex, 0, subjectScene);
       }
     }
   };
@@ -380,7 +380,7 @@ export class SceneManager implements ISceneManager, Updateable, Renderable {
     if (scene) {
       const index = this._scenes.indexOf(scene);
 
-      if (index !== -1 && index < this._scenes.length - 1) {
+      if (index !== -1 && index < this._scenes.length) {
         const targetIndex = index + 1;
         const targetScene = this._scenes[targetIndex];
 
@@ -406,17 +406,17 @@ export class SceneManager implements ISceneManager, Updateable, Renderable {
     }
   };
 
-  private _swap = (key: string, otherKey: string): void => {
-    const scene = this._lookup.get(key);
-    const otherScene = this._lookup.get(otherKey);
+  private _swap = (subjectKey: string, targetKey: string): void => {
+    const subjectScene = this._lookup.get(subjectKey);
+    const targetScene = this._lookup.get(targetKey);
 
-    if (scene && otherScene) {
-      const index = this._scenes.indexOf(scene);
-      const otherIndex = this._scenes.indexOf(otherScene);
+    if (subjectScene && targetScene) {
+      const subjectIndex = this._scenes.indexOf(subjectScene);
+      const targetIndex = this._scenes.indexOf(targetScene);
 
-      if (index !== otherIndex && index !== -1 && otherIndex !== -1) {
-        this._scenes[index] = otherScene;
-        this._scenes[otherIndex] = scene;
+      if (subjectIndex !== targetIndex && subjectIndex !== -1 && targetIndex !== -1) {
+        this._scenes[subjectIndex] = targetScene;
+        this._scenes[targetIndex] = subjectScene;
       }
     }
   };
