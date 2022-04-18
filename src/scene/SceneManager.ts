@@ -196,17 +196,17 @@ export class SceneManager implements ISceneManager, Updateable, Renderable {
       }
 
       if (scene.state.isPaused()) {
-        this._resume(key, data);
+        return this._resume(key, data);
       }
 
       if (scene.state.isSleeping()) {
-        this._wakeup(key, data);
+        return this._wakeup(key, data);
       }
 
       scene.state.status = SceneStatus.Loading;
       const promise = scene.load?.() ?? Promise.resolve();
 
-      this._messaging.publish(SceneEvent.Loading, scene, data);
+      this._messaging.publish(SceneEvent.Loading, scene, data, promise);
 
       promise
         .then(() => {
@@ -218,7 +218,7 @@ export class SceneManager implements ISceneManager, Updateable, Renderable {
           console.error('Failed to load scene: ', err);
           scene.state.status = SceneStatus.Stopped;
 
-          this._messaging.publish(SceneEvent.LoadFailed, scene, data);
+          this._messaging.publish(SceneEvent.LoadFailed, scene, data, err);
         });
     }
   };
@@ -296,6 +296,8 @@ export class SceneManager implements ISceneManager, Updateable, Renderable {
     const scene = this._lookup.get(key);
 
     if (scene) {
+      this._stop(key);
+
       scene.state.status = SceneStatus.Destroyed;
       scene.destroy?.();
 
