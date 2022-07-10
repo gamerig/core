@@ -19,6 +19,7 @@ export interface IAddOptions {
   loadType?: LoaderResource.LOAD_TYPE;
   xhrType?: LoaderResource.XHR_RESPONSE_TYPE;
   metadata?: IResourceMetadata;
+  cache?: boolean;
 }
 
 export interface LoaderOptions {
@@ -27,7 +28,12 @@ export interface LoaderOptions {
 }
 
 export interface ILoader {
-  add(name: string, url: string, options?: IAddOptions): ILoader;
+  add(
+    name: string,
+    url: string,
+    options?: IAddOptions,
+    callback?: LoaderResource.OnCompleteSignal,
+  ): ILoader;
   start(): void;
   reset(): void;
   destroy(): void;
@@ -42,6 +48,9 @@ export interface ILoader {
 
   progress: number;
   loading: boolean;
+
+  baseUrl: string;
+  resources: Record<string, LoaderResource>;
 }
 
 /**
@@ -113,7 +122,12 @@ export class Loader implements ILoader {
     }
   }
 
-  add(name: string, url: string, options?: IAddOptions): this {
+  add(
+    name: string,
+    url: string,
+    options?: IAddOptions,
+    callback?: LoaderResource.OnCompleteSignal,
+  ): this {
     // if loading already you can only add resources that have a parent.
     if (this._loading && (!options || !options.parentResource)) {
       throw new Error('Cannot add resources while the loader is running.');
@@ -129,6 +143,10 @@ export class Loader implements ILoader {
 
     // create the store the resource
     this._resources[name] = new LoaderResource(name, url, options);
+
+    if (typeof callback === 'function') {
+      this.resources[name].onAfterMiddleware.once(callback);
+    }
 
     // if actively loading, make sure to adjust progress chunks for that parent and its children
     if (this._loading) {
@@ -285,6 +303,10 @@ export class Loader implements ILoader {
 
   get loading(): boolean {
     return this._loading;
+  }
+
+  get resources(): Record<string, LoaderResource> {
+    return this._resources;
   }
 
   /**

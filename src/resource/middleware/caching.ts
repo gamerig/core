@@ -8,7 +8,7 @@ export const caching = (manager: IResourceManager) => {
       resource.complete();
     } else {
       resource.onComplete.once((r: LoaderResource) => {
-        manager.add(r.url, r);
+        r.cache && manager.add(r.url, r);
       });
     }
 

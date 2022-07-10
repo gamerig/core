@@ -2,10 +2,10 @@ import { IEngine } from '../engine/Engine';
 import { EventListener, IMessageBus } from '../messaging/MessageBus';
 import { Scene } from '../scene/Scene';
 import { SceneEvent } from '../scene/SceneEvent';
-import { ILoader, Loader } from './loader/Loader';
+import { Loader } from './loader/Loader';
 import { IResourceManager } from './ResourceManager';
 
-export class SceneInjector {
+export class ScenePlugin {
   private _events: IMessageBus;
   private _sceneListeners: EventListener[] = [];
 
@@ -19,11 +19,11 @@ export class SceneInjector {
           baseUrl: '',
           concurrency: 10,
         });
-        /**
-         * In each initialized scene, inject a new loader instance and the global resource manager
-         */
-        scene.inject(ILoader.KEY, loader);
-        scene.inject(IResourceManager.KEY, resourceManager);
+
+        Object.defineProperties(scene, {
+          loader: { value: loader },
+          resources: { value: resourceManager.resources },
+        });
       }),
     );
 
@@ -34,14 +34,14 @@ export class SceneInjector {
     );
 
     this._sceneListeners.push(
-      this._events.subscribe(SceneEvent.Destroyed, (scene: Scene): void => {
-        scene.loader.destroy();
+      this._events.subscribe(SceneEvent.Stopped, (scene: Scene): void => {
+        scene.loader.reset();
       }),
     );
 
     this._sceneListeners.push(
-      this._events.subscribe(SceneEvent.Stopped, (scene: Scene): void => {
-        scene.loader.reset();
+      this._events.subscribe(SceneEvent.Destroyed, (scene: Scene): void => {
+        scene.loader.destroy();
       }),
     );
   }

@@ -4,24 +4,24 @@ import { Loader } from './loader/Loader';
 import { caching } from './middleware/caching';
 import { parsing } from './middleware/parsing';
 import { IResourceManager, ResourceManager } from './ResourceManager';
-import { SceneInjector } from './SceneInjector';
+import { ScenePlugin } from './ScenePlugin';
 
 export class ResourceModule implements Module {
-  private _resourceManager!: IResourceManager;
-  private _sceneProviders!: SceneInjector;
+  private _resources!: IResourceManager;
+  private _scenePlugin!: ScenePlugin;
 
   init(engine: IEngine): void {
-    this._resourceManager = new ResourceManager(engine);
-    engine.addProvider({ key: IResourceManager.KEY, useValue: this._resourceManager });
+    this._resources = new ResourceManager(engine);
+    engine.addProvider({ key: IResourceManager.KEY, useValue: this._resources });
 
-    Loader.registerPlugin({ pre: caching(this._resourceManager) });
+    Loader.registerPlugin({ pre: caching(this._resources) });
     Loader.registerPlugin({ use: parsing });
 
-    this._sceneProviders = new SceneInjector(engine);
+    this._scenePlugin = new ScenePlugin(engine);
   }
 
   destroy(): void {
-    this._sceneProviders.destroy();
-    this._resourceManager.destroy();
+    this._scenePlugin.destroy();
+    this._resources.destroy();
   }
 }

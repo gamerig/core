@@ -10,6 +10,15 @@ type SystemRegistration = {
   priority: number;
 };
 
+// eslint-disable-next-line @typescript-eslint/no-namespace
+export namespace SystemPriority {
+  export const LOWEST = -200;
+  export const LOW = -100;
+  export const NORMAL = 0;
+  export const HIGH = 100;
+  export const HIGHEST = 200;
+}
+
 export class SystemManager {
   private _needSorting = true;
   private _systems: SystemRegistration[] = [];
@@ -20,7 +29,7 @@ export class SystemManager {
     this._messaging = this.engine.messaging;
   }
 
-  addSystem(system: System, priority: number): this {
+  addSystem(system: System, priority: number = SystemPriority.NORMAL): this {
     this._systems.push({ system, priority });
     system.init(this.engine);
 

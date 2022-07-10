@@ -6,7 +6,7 @@ import { ResourceModule } from '../resource/ResourceModule';
 import { ISceneManager } from '../scene/SceneManager';
 import { SceneSystem } from '../scene/SceneSystem';
 import { System } from '../system/System';
-import { SystemManager } from '../system/SystemManager';
+import { SystemManager, SystemPriority } from '../system/SystemManager';
 import { EngineEvent } from './EngineEvent';
 import { EngineSettings } from './EngineSettings';
 
@@ -61,7 +61,7 @@ export class Engine implements IEngine {
     this._systems = new SystemManager(this);
 
     const sceneSys = new SceneSystem();
-    this._systems.addSystem(sceneSys, -100);
+    this._systems.addSystem(sceneSys, SystemPriority.NORMAL);
 
     this.addProvider({ key: ISceneManager.KEY, useValue: sceneSys.manager });
 
@@ -139,7 +139,7 @@ export class Engine implements IEngine {
    * @param system
    * @param priority
    */
-  addSystem = (system: System, priority = 0): void => {
+  addSystem = (system: System, priority = SystemPriority.NORMAL): void => {
     if (this._isProcessing) {
       this._opQueue.push({
         fn: this.addSystem,

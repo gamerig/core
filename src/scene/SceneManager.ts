@@ -5,7 +5,7 @@ import { IEngine } from '../engine/Engine';
 import { IMessageBus } from '../messaging/MessageBus';
 import { Scene } from './Scene';
 import { SceneEvent } from './SceneEvent';
-import { ISceneManagerProxy, SceneManagerProxy } from './SceneManagerProxy';
+import { SceneManagerProxy } from './SceneManagerProxy';
 import { SceneStatus } from './SceneState';
 
 export interface ISceneManager {
@@ -167,8 +167,11 @@ export class SceneManager implements ISceneManager, Updateable, Renderable {
 
   private _add = (key: string, ctor: Type<Scene>, autostart = false, data: any = {}): void => {
     const scene = new ctor(key, this._engine);
-    scene.inject(IMessageBus.KEY, this._messaging);
-    scene.inject(ISceneManagerProxy.KEY, new SceneManagerProxy(this, scene));
+
+    Object.defineProperties(scene, {
+      events: { value: this._messaging },
+      scenes: { value: new SceneManagerProxy(this, scene) },
+    });
 
     this._lookup.set(key, scene);
     this._scenes.push(scene);

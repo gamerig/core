@@ -127,6 +127,13 @@ class LoaderResource {
   xhrType?: string;
 
   /**
+   * Flag to enable putting the resource in the global resource manager cache.
+   * This will allow it to be accessible between scenes, otherwise it will be available
+   * only locally in the scene it was loaded from
+   */
+  readonly cache: boolean;
+
+  /**
    * Extra info for middleware, and controlling specifics about how the resource loads.
    *
    * Note that if you pass in a `loadElement`, the Resource class takes ownership of it.
@@ -246,6 +253,7 @@ class LoaderResource {
       loadType?: LoaderResource.LOAD_TYPE;
       xhrType?: LoaderResource.XHR_RESPONSE_TYPE;
       metadata?: IResourceMetadata;
+      cache?: boolean;
     },
   ) {
     if (typeof name !== 'string' || typeof url !== 'string') {
@@ -275,6 +283,8 @@ class LoaderResource {
 
     // The type used to load the resource via XHR. If unset, determined automatically.
     this.xhrType = options.xhrType;
+
+    this.cache = options?.cache ?? false;
 
     // Extra info for middleware, and controlling specifics about how the resource loads.
     // Note that if you pass in a `loadElement`, the Resource class takes ownership of it.
