@@ -1,41 +1,29 @@
-import { isRenderable } from '../common/interface/Renderable';
-import { isUpdateable } from '../common/interface/Updateable';
-import { IEngine } from '../engine/Engine';
-import { IMessageBus } from '../messaging/MessageBus';
+import { Engine } from '../engine/Engine';
+import { SystemEvent, SystemOptions } from '.';
 import { System } from './System';
-import { SystemEvent } from './SystemEvent';
 
 type SystemRegistration = {
   system: System;
-  priority: number;
+  options: SystemOptions;
 };
 
-// eslint-disable-next-line @typescript-eslint/no-namespace
-export namespace SystemPriority {
-  export const LOWEST = -200;
-  export const LOW = -100;
-  export const NORMAL = 0;
-  export const HIGH = 100;
-  export const HIGHEST = 200;
-}
-
 export class SystemManager {
-  private _needSorting = true;
-  private _systems: SystemRegistration[] = [];
+  sortSystems = true;
 
-  private _messaging: IMessageBus;
+  private systems: SystemRegistration[] = [];
 
-  constructor(private readonly engine: IEngine) {
-    this._messaging = this.engine.messaging;
-  }
+  constructor(readonly engine: Engine) {}
 
-  addSystem(system: System, priority: number = SystemPriority.NORMAL): this {
-    this._systems.push({ system, priority });
-    system.init(this.engine);
+  add(system: System, options: SystemOptions): this {
+    this.systems.push({ system, options });
 
-    this._needSorting = true;
+    if (system.init) {
+      system.init(this.engine);
+    }
 
-    this._messaging.publish(SystemEvent.Added, system);
+    this.sortSystems = true;
+
+    this.engine.messaging.publish(SystemEvent.Added, system);
 
     return this;
   }
@@ -43,13 +31,13 @@ export class SystemManager {
   update(delta: number): void {
     this.sortIfNeeded();
 
-    this._systems.forEach(({ system }) => {
-      if (isUpdateable(system)) {
-        this._messaging.publish(SystemEvent.BeforeUpdate, system, delta);
+    this.systems.forEach(({ system }) => {
+      if (system.update) {
+        this.engine.messaging.publish(SystemEvent.BeforeUpdate, system, delta);
 
         system.update(delta);
 
-        this._messaging.publish(SystemEvent.AfterUpdate, system, delta);
+        this.engine.messaging.publish(SystemEvent.AfterUpdate, system, delta);
       }
     });
   }
@@ -57,31 +45,33 @@ export class SystemManager {
   render(): void {
     this.sortIfNeeded();
 
-    this._systems.forEach(({ system }) => {
-      if (isRenderable(system)) {
-        this._messaging.publish(SystemEvent.BeforeRender, system);
+    this.systems.forEach(({ system }) => {
+      if (system.render) {
+        this.engine.messaging.publish(SystemEvent.BeforeRender, system);
 
         system.render();
 
-        this._messaging.publish(SystemEvent.AfterRender, system);
+        this.engine.messaging.publish(SystemEvent.AfterRender, system);
       }
     });
   }
 
   destroy(): void {
-    this._systems.forEach(({ system }) => {
-      system.destroy();
+    this.systems.forEach(({ system }) => {
+      if (system.destroy) {
+        system.destroy();
+      }
 
-      this._messaging.publish(SystemEvent.Destroyed, system);
+      this.engine.messaging.publish(SystemEvent.Destroyed, system);
     });
 
-    this._systems = [];
+    this.systems = [];
   }
 
   private sortIfNeeded(): void {
-    if (this._needSorting) {
-      this._systems.sort((a, b) => b.priority - a.priority);
-      this._needSorting = false;
+    if (this.sortSystems) {
+      this.systems.sort((a, b) => b.options.priority - a.options.priority);
+      this.sortSystems = false;
     }
   }
 }

@@ -1,98 +1,71 @@
-import { Renderable } from '../common/interface/Renderable';
-import { Updateable } from '../common/interface/Updateable';
-import { OpQueueItem, Type } from '../common/types';
-import { IEngine } from '../engine/Engine';
-import { IMessageBus } from '../messaging/MessageBus';
+import { Engine, Type } from '../engine';
+import { MessageBus } from '../messaging/MessageBus';
+import { SceneEvent } from '.';
 import { Scene } from './Scene';
-import { SceneEvent } from './SceneEvent';
-import { SceneManagerProxy } from './SceneManagerProxy';
 import { SceneStatus } from './SceneState';
 
-export interface ISceneManager {
-  add(key: string, ctor: Type<Scene>, autostart?: boolean, data?: any): void;
-  remove(key: string): void;
-  start(key: string, data?: any): void;
-  restart(key: string, data?: any): void;
-  pause(key: string): void;
-  sleep(key: string): void;
-  stop(key: string): void;
-  shutdown(key: string): void;
+type OpQueueItem = { fn: (...args: any[]) => any; args: any[] };
 
-  // render order management methods
-  bringToTop(key: string): void;
-  sendToBack(key: string): void;
-  moveUp(key: string): void;
-  moveDown(key: string): void;
-  moveAbove(key: string, targetKey: string): void;
-  moveBelow(key: string, targetKey: string): void;
-  swap(key: string, targetKey: string): void;
-}
+export class SceneManager {
+  private queue: OpQueueItem[] = [];
 
-export class SceneManager implements ISceneManager, Updateable, Renderable {
-  private _queue: OpQueueItem[] = [];
+  private lookup: Map<string, Scene> = new Map();
 
-  private _lookup: Map<string, Scene> = new Map();
+  private scenes: Scene[] = [];
 
-  /**
-   * List of all registered scenes(states)
-   * Only some of these can be active, update and render order depends on the order of the array
-   * Updates are done from top scenes to bottom and renders viceversa
-   */
-  private _scenes: Scene[] = [];
+  private events: MessageBus;
 
-  private _messaging: IMessageBus;
-
-  constructor(private readonly _engine: IEngine) {
-    this._messaging = this._engine.messaging;
+  constructor(readonly engine: Engine) {
+    this.events = this.engine.messaging;
   }
 
-  add(key: string, ctor: Type<Scene>, autostart = false, data: any = {}): void {
-    this.enqueueOp({ fn: this._add, args: [key, ctor, autostart, data] });
+  add(name: string, ctor: Type<Scene>, autostart = false, data: any = {}): void {
+    this.enqueueOp({ fn: this._add, args: [name, ctor, autostart, data] });
   }
 
-  remove(key: string): void {
-    this.enqueueOp({ fn: this._remove, args: [key] });
+  remove(name: string): void {
+    this.enqueueOp({ fn: this._remove, args: [name] });
   }
 
-  start(key: string, data: any = {}): void {
-    this.enqueueOp({ fn: this._start, args: [key, data] });
+  start(name: string, data: any = {}): void {
+    this.enqueueOp({ fn: this._start, args: [name, data] });
   }
 
-  restart(key: string, data: any = {}): void {
-    this.stop(key);
-    this.start(key, data);
+  restart(name: string, data: any = {}): void {
+    this.stop(name);
+    this.start(name, data);
   }
 
-  pause(key: string): void {
-    this.enqueueOp({ fn: this._pause, args: [key] });
+  pause(name: string): void {
+    this.enqueueOp({ fn: this._pause, args: [name] });
   }
 
-  sleep(key: string): void {
-    this.enqueueOp({ fn: this._sleep, args: [key] });
+  sleep(name: string): void {
+    this.enqueueOp({ fn: this._sleep, args: [name] });
   }
 
-  stop(key: string): void {
-    this.enqueueOp({ fn: this._stop, args: [key] });
+  stop(name: string): void {
+    this.enqueueOp({ fn: this._stop, args: [name] });
   }
 
-  shutdown(key: string): void {
-    this.enqueueOp({ fn: this._shutdown, args: [key] });
+  shutdown(name: string): void {
+    this.enqueueOp({ fn: this._shutdown, args: [name] });
   }
 
-  bringToTop(key: string): void {
-    this.enqueueOp({ fn: this._bringToTop, args: [key] });
+  bringToTop(name: string): void {
+    this.enqueueOp({ fn: this._bringToTop, args: [name] });
   }
 
-  sendToBack(key: string): void {
-    this.enqueueOp({ fn: this._sendToBack, args: [key] });
+  sendToBack(name: string): void {
+    this.enqueueOp({ fn: this._sendToBack, args: [name] });
   }
 
-  moveUp(key: string): void {
-    this.enqueueOp({ fn: this._moveUp, args: [key] });
+  moveUp(name: string): void {
+    this.enqueueOp({ fn: this._moveUp, args: [name] });
   }
 
-  moveDown(key: string): void {
-    this.enqueueOp({ fn: this._moveDown, args: [key] });
+  moveDown(name: string): void {
+    this.enqueueOp({ fn: this._moveDown, args: [name] });
   }
 
   moveAbove(subject: string, target: string): void {
@@ -107,91 +80,84 @@ export class SceneManager implements ISceneManager, Updateable, Renderable {
     this.enqueueOp({ fn: this._swap, args: [subject, target] });
   }
 
-  getScene(key: string): Scene | undefined {
-    return this._lookup.get(key);
+  getScene(name: string): Scene | undefined {
+    return this.lookup.get(name);
   }
 
   update(delta: number): void {
     this._processQueue();
 
     // update scenes from top to bottom
-    for (let i = this._scenes.length - 1; i >= 0; i--) {
-      const scene = this._scenes[i];
+    for (let i = this.scenes.length - 1; i >= 0; i--) {
+      const scene = this.scenes[i];
 
       if (scene.state.shouldUpdate()) {
-        this._messaging.publish(SceneEvent.BeforeUpdate, scene, delta);
+        this.events.publish(SceneEvent.BeforeUpdate, scene, delta);
 
         scene.update?.(delta);
 
-        this._messaging.publish(SceneEvent.AfterUpdate, scene, delta);
+        this.events.publish(SceneEvent.AfterUpdate, scene, delta);
       }
     }
   }
 
   render(): void {
     // render scenes from bottom to top
-    for (let i = 0; i < this._scenes.length; i++) {
-      const scene = this._scenes[i];
+    for (let i = 0; i < this.scenes.length; i++) {
+      const scene = this.scenes[i];
 
       if (scene.state.shouldRender()) {
-        this._messaging.publish(SceneEvent.BeforeRender, scene);
+        this.events.publish(SceneEvent.BeforeRender, scene);
 
         scene.render?.();
 
-        this._messaging.publish(SceneEvent.AfterRender, scene);
+        this.events.publish(SceneEvent.AfterRender, scene);
       }
     }
   }
 
   destroy(): void {
-    this._scenes.forEach((scene) => {
-      this._shutdown(scene.key);
+    this.scenes.forEach((scene) => {
+      this._shutdown(scene.name);
     });
 
-    this._scenes = [];
-    this._lookup.clear();
-    this._queue = [];
+    this.scenes = [];
+    this.lookup.clear();
+    this.queue = [];
   }
 
   enqueueOp(op: OpQueueItem): void {
-    this._queue.push(op);
+    this.queue.push(op);
   }
 
   private _processQueue(): void {
-    // process queue
-    while (this._queue.length > 0) {
-      const op = this._queue.shift();
+    while (this.queue.length > 0) {
+      const op = this.queue.shift();
       op?.fn.apply(this, op.args);
     }
   }
 
-  private _add = (key: string, ctor: Type<Scene>, autostart = false, data: any = {}): void => {
-    const scene = new ctor(key, this._engine);
+  private _add = (name: string, ctor: Type<Scene>, autostart = false, data: any = {}): void => {
+    const scene = new ctor(name, this.engine, this);
 
-    Object.defineProperties(scene, {
-      events: { value: this._messaging },
-      scenes: { value: new SceneManagerProxy(this, scene) },
-    });
+    this.lookup.set(name, scene);
+    this.scenes.push(scene);
 
-    this._lookup.set(key, scene);
-    this._scenes.push(scene);
-
-    this._messaging.publish(SceneEvent.Added, scene, data);
+    this.events.publish(SceneEvent.Added, scene, data);
 
     scene.state.status = SceneStatus.Init;
 
-    // send event before calling scene.init to let modules inject stuff into the scene
-    this._messaging.publish(SceneEvent.Init, scene);
+    this.events.publish(SceneEvent.Init, scene);
 
     scene.init?.();
 
     if (autostart) {
-      this._start(key, data);
+      this._start(name, data);
     }
   };
 
-  private _start = (key: string, data: any = {}): void => {
-    const scene = this._lookup.get(key);
+  private _start = (name: string, data: any = {}): void => {
+    const scene = this.lookup.get(name);
 
     if (scene) {
       if (scene.state.isActive()) {
@@ -199,235 +165,230 @@ export class SceneManager implements ISceneManager, Updateable, Renderable {
       }
 
       if (scene.state.isPaused()) {
-        return this._resume(key, data);
+        return this._resume(name, data);
       }
 
       if (scene.state.isSleeping()) {
-        return this._wakeup(key, data);
+        return this._wakeup(name, data);
       }
 
       scene.state.status = SceneStatus.Loading;
       const promise = scene.load?.() ?? Promise.resolve();
 
-      this._messaging.publish(SceneEvent.Loading, scene, data, promise);
+      this.events.publish(SceneEvent.Loading, scene, data, promise);
 
       promise
         .then(() => {
-          this._messaging.publish(SceneEvent.Loaded, scene, data);
+          this.events.publish(SceneEvent.Loaded, scene, data);
 
-          this._create(key, data);
+          this._create(name, data);
         })
         .catch((err) => {
           console.error('Failed to load scene: ', err);
           scene.state.status = SceneStatus.Stopped;
 
-          this._messaging.publish(SceneEvent.LoadFailed, scene, data, err);
+          this.events.publish(SceneEvent.LoadFailed, scene, data, err);
         });
     }
   };
 
-  private _create = (key: string, data: any = {}): void => {
-    const scene = this._lookup.get(key);
+  private _create = (name: string, data: any = {}): void => {
+    const scene = this.lookup.get(name);
 
     if (scene && scene.state.isActive()) {
       scene.state.status = SceneStatus.Creating;
 
       scene.create?.(data);
 
-      this._messaging.publish(SceneEvent.Created, scene, data);
+      this.events.publish(SceneEvent.Created, scene, data);
 
       scene.state.status = SceneStatus.Running;
     }
   };
 
-  private _pause = (key: string): void => {
-    const scene = this._lookup.get(key);
+  private _pause = (name: string): void => {
+    const scene = this.lookup.get(name);
 
     if (scene && scene.state.isActive()) {
       scene.state.status = SceneStatus.Paused;
       scene.pause?.();
 
-      this._messaging.publish(SceneEvent.Paused, scene);
+      this.events.publish(SceneEvent.Paused, scene);
     }
   };
 
-  private _sleep = (key: string): void => {
-    const scene = this._lookup.get(key);
+  private _sleep = (name: string): void => {
+    const scene = this.lookup.get(name);
 
     if (scene && scene.state.isActive()) {
       scene.state.status = SceneStatus.Sleeping;
       scene.sleep?.();
 
-      this._messaging.publish(SceneEvent.Sleeping, scene);
+      this.events.publish(SceneEvent.Sleeping, scene);
     }
   };
 
-  private _resume = (key: string, data: any = {}): void => {
-    const scene = this._lookup.get(key);
+  private _resume = (name: string, data: any = {}): void => {
+    const scene = this.lookup.get(name);
 
     if (scene && scene.state.isPaused()) {
       scene.resume?.(data);
       scene.state.status = SceneStatus.Running;
 
-      this._messaging.publish(SceneEvent.Resumed, scene, data);
+      this.events.publish(SceneEvent.Resumed, scene, data);
     }
   };
 
-  private _wakeup = (key: string, data: any = {}): void => {
-    const scene = this._lookup.get(key);
+  private _wakeup = (name: string, data: any = {}): void => {
+    const scene = this.lookup.get(name);
 
     if (scene && scene.state.isSleeping()) {
       scene.wakeup?.(data);
       scene.state.status = SceneStatus.Running;
 
-      this._messaging.publish(SceneEvent.Woken, scene, data);
+      this.events.publish(SceneEvent.Woken, scene, data);
     }
   };
 
-  private _stop = (key: string): void => {
-    const scene = this._lookup.get(key);
+  private _stop = (name: string): void => {
+    const scene = this.lookup.get(name);
 
     if (scene) {
       scene.state.status = SceneStatus.Stopped;
       scene.stop?.();
 
-      this._messaging.publish(SceneEvent.Stopped, scene);
+      this.events.publish(SceneEvent.Stopped, scene);
     }
   };
 
-  private _shutdown = (key: string): void => {
-    const scene = this._lookup.get(key);
+  private _shutdown = (name: string): void => {
+    const scene = this.lookup.get(name);
 
     if (scene) {
-      this._stop(key);
+      this._stop(name);
 
       scene.state.status = SceneStatus.Destroyed;
       scene.destroy?.();
 
-      this._messaging.publish(SceneEvent.Destroyed, scene);
+      this.events.publish(SceneEvent.Destroyed, scene);
     }
   };
 
-  private _remove = (key: string): void => {
-    const scene = this._lookup.get(key);
+  private _remove = (name: string): void => {
+    const scene = this.lookup.get(name);
 
     if (scene) {
-      this._shutdown(key);
+      this._shutdown(name);
 
-      const index = this._scenes.indexOf(scene);
+      const index = this.scenes.indexOf(scene);
 
-      this._scenes.splice(index, 1);
-      this._lookup.delete(key);
+      this.scenes.splice(index, 1);
+      this.lookup.delete(name);
 
-      this._messaging.publish(SceneEvent.Removed, scene);
+      this.events.publish(SceneEvent.Removed, scene);
     }
   };
 
-  private _bringToTop = (key: string): void => {
-    const scene = this._lookup.get(key);
+  private _bringToTop = (name: string): void => {
+    const scene = this.lookup.get(name);
 
     if (scene) {
-      const index = this._scenes.indexOf(scene);
+      const index = this.scenes.indexOf(scene);
 
-      if (index !== -1 && index < this._scenes.length) {
-        this._scenes.splice(index, 1);
-        this._scenes.push(scene);
+      if (index !== -1 && index < this.scenes.length) {
+        this.scenes.splice(index, 1);
+        this.scenes.push(scene);
       }
     }
   };
 
-  private _sendToBack = (key: string): void => {
-    const scene = this._lookup.get(key);
+  private _sendToBack = (name: string): void => {
+    const scene = this.lookup.get(name);
 
     if (scene) {
-      const index = this._scenes.indexOf(scene);
+      const index = this.scenes.indexOf(scene);
 
       if (index > 0) {
-        this._scenes.splice(index, 1);
-        this._scenes.unshift(scene);
+        this.scenes.splice(index, 1);
+        this.scenes.unshift(scene);
       }
     }
   };
 
-  private _moveAbove = (subjectKey: string, targetKey: string): void => {
-    const targetScene = this._lookup.get(targetKey);
-    const subjectScene = this._lookup.get(subjectKey);
+  private _moveAbove = (subjectName: string, targetName: string): void => {
+    const targetScene = this.lookup.get(targetName);
+    const subjectScene = this.lookup.get(subjectName);
 
     if (targetScene && subjectScene) {
-      const targetIndex = this._scenes.indexOf(targetScene);
-      const subjectIndex = this._scenes.indexOf(subjectScene);
+      const targetIndex = this.scenes.indexOf(targetScene);
+      const subjectIndex = this.scenes.indexOf(subjectScene);
 
       if (targetIndex !== -1 && subjectIndex !== -1) {
-        this._scenes.splice(subjectIndex, 1);
-        this._scenes.splice(targetIndex + 1, 0, subjectScene);
+        this.scenes.splice(subjectIndex, 1);
+        this.scenes.splice(targetIndex + 1, 0, subjectScene);
       }
     }
   };
 
-  private _moveBelow = (subjectKey: string, targetKey: string): void => {
-    const targetScene = this._lookup.get(targetKey);
-    const subjectScene = this._lookup.get(subjectKey);
+  private _moveBelow = (subjectName: string, targetName: string): void => {
+    const targetScene = this.lookup.get(targetName);
+    const subjectScene = this.lookup.get(subjectName);
 
     if (targetScene && subjectScene) {
-      const targetIndex = this._scenes.indexOf(targetScene);
-      const subjectIndex = this._scenes.indexOf(subjectScene);
+      const targetIndex = this.scenes.indexOf(targetScene);
+      const subjectIndex = this.scenes.indexOf(subjectScene);
 
       if (targetIndex !== -1 && subjectIndex !== -1) {
-        this._scenes.splice(subjectIndex, 1);
-        this._scenes.splice(targetIndex, 0, subjectScene);
+        this.scenes.splice(subjectIndex, 1);
+        this.scenes.splice(targetIndex, 0, subjectScene);
       }
     }
   };
 
-  private _moveUp = (key: string): void => {
-    const scene = this._lookup.get(key);
+  private _moveUp = (name: string): void => {
+    const scene = this.lookup.get(name);
 
     if (scene) {
-      const index = this._scenes.indexOf(scene);
+      const index = this.scenes.indexOf(scene);
 
-      if (index !== -1 && index < this._scenes.length) {
+      if (index !== -1 && index < this.scenes.length) {
         const targetIndex = index + 1;
-        const targetScene = this._scenes[targetIndex];
+        const targetScene = this.scenes[targetIndex];
 
-        this._scenes[index] = targetScene;
-        this._scenes[targetIndex] = scene;
+        this.scenes[index] = targetScene;
+        this.scenes[targetIndex] = scene;
       }
     }
   };
 
-  private _moveDown = (key: string): void => {
-    const scene = this._lookup.get(key);
+  private _moveDown = (name: string): void => {
+    const scene = this.lookup.get(name);
 
     if (scene) {
-      const index = this._scenes.indexOf(scene);
+      const index = this.scenes.indexOf(scene);
 
       if (index > 0) {
         const targetIndex = index - 1;
-        const targetScene = this._scenes[targetIndex];
+        const targetScene = this.scenes[targetIndex];
 
-        this._scenes[index] = targetScene;
-        this._scenes[targetIndex] = scene;
+        this.scenes[index] = targetScene;
+        this.scenes[targetIndex] = scene;
       }
     }
   };
 
-  private _swap = (subjectKey: string, targetKey: string): void => {
-    const subjectScene = this._lookup.get(subjectKey);
-    const targetScene = this._lookup.get(targetKey);
+  private _swap = (subjectName: string, targetName: string): void => {
+    const subjectScene = this.lookup.get(subjectName);
+    const targetScene = this.lookup.get(targetName);
 
     if (subjectScene && targetScene) {
-      const subjectIndex = this._scenes.indexOf(subjectScene);
-      const targetIndex = this._scenes.indexOf(targetScene);
+      const subjectIndex = this.scenes.indexOf(subjectScene);
+      const targetIndex = this.scenes.indexOf(targetScene);
 
       if (subjectIndex !== targetIndex && subjectIndex !== -1 && targetIndex !== -1) {
-        this._scenes[subjectIndex] = targetScene;
-        this._scenes[targetIndex] = subjectScene;
+        this.scenes[subjectIndex] = targetScene;
+        this.scenes[targetIndex] = subjectScene;
       }
     }
   };
-}
-
-// eslint-disable-next-line @typescript-eslint/no-namespace
-export namespace ISceneManager {
-  export const KEY = Symbol('SceneManager');
 }

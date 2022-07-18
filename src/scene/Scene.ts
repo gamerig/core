@@ -1,11 +1,25 @@
-import { IEngine } from '../engine/Engine';
-import { IMessageBus } from '../messaging/MessageBus';
-import { ILoader } from '../resource/loader/Loader';
-import { LoaderResource } from '../resource/loader/LoaderResource';
-import { ISceneManagerProxy } from './SceneManagerProxy';
+import { Engine } from '../engine';
+import { MessageBus } from '../messaging/MessageBus';
+import { SceneManager } from './SceneManager';
 import { SceneState, SceneStatus } from './SceneState';
 
-export interface Scene {
+export abstract class Scene {
+  readonly engine: Engine;
+
+  readonly events: MessageBus;
+
+  readonly state: SceneState;
+
+  readonly scenes: SceneManager;
+
+  constructor(readonly name: string, engine: Engine, manager: SceneManager) {
+    this.engine = engine;
+    this.events = engine.messaging;
+    this.scenes = manager;
+
+    this.state = new SceneState(this.name, this, SceneStatus.Pending, false);
+  }
+
   init?(): void;
   load?(): Promise<void>;
   create?(data?: any): void;
@@ -18,31 +32,4 @@ export interface Scene {
 
   update?(delta: number): void;
   render?(): void;
-
-  // oficially recognized core properties of the scene
-  // can be extended by other packages via module augmentation
-  readonly scenes: ISceneManagerProxy;
-  readonly events: IMessageBus;
-  readonly loader: ILoader;
-  readonly resources: { [key: string]: LoaderResource };
-}
-
-export abstract class Scene implements Scene {
-  private _state!: SceneState;
-
-  constructor(private readonly _key: string, private readonly _engine: IEngine) {
-    this._state = new SceneState(_key, SceneStatus.Pending, false);
-  }
-
-  get state(): SceneState {
-    return this._state;
-  }
-
-  get key(): string {
-    return this._key;
-  }
-
-  get engine(): IEngine {
-    return this._engine;
-  }
 }

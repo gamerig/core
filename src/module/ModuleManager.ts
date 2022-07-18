@@ -1,34 +1,19 @@
-import { Type } from '../common/types';
-import { IEngine } from '../engine/Engine';
-import { IMessageBus } from '../messaging/MessageBus';
+import { Engine } from '../engine/Engine';
+import { ModuleEvent } from '.';
 import { Module } from './Module';
-import { ModuleEvent } from './ModuleEvent';
 
 export class ModuleManager {
   private _modules: Module[] = [];
 
-  private _messaging: IMessageBus;
+  constructor(readonly engine: Engine) {}
 
-  constructor(private readonly _engine: IEngine) {
-    this._messaging = this._engine.messaging;
-  }
+  add(module: Module): void {
+    this._modules.push(module);
 
-  registerModules(modules: (Type<Module> | Module)[]): void {
-    modules.forEach((module) => {
-      if (typeof module === 'object') {
-        module.init(this._engine);
-        this._modules.push(module);
+    if (module.init) {
+      module.init(this.engine);
+    }
 
-        this._messaging.publish(ModuleEvent.Added, module);
-      }
-
-      if (typeof module === 'function') {
-        const instance = new module();
-        instance.init(this._engine);
-        this._modules.push(instance);
-
-        this._messaging.publish(ModuleEvent.Added, instance);
-      }
-    });
+    this.engine.messaging.publish(ModuleEvent.Added, module);
   }
 }

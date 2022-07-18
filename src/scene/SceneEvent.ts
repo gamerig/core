@@ -1,28 +1,26 @@
-export class SceneEvent {
-  static readonly Added = ['event', 'scene', Symbol('added')];
-  static readonly Removed = ['event', 'scene', Symbol('removed')];
+export const Added = 'gamerig.core.event.scene.added';
+export const Removed = 'gamerig.core.event.scene.removed';
 
-  static readonly BeforeUpdate = ['event', 'scene', Symbol('beforeUpdate')];
-  static readonly AfterUpdate = ['event', 'scene', Symbol('afterUpdate')];
+export const BeforeUpdate = 'gamerig.core.event.scene.beforeUpdate';
+export const AfterUpdate = 'gamerig.core.event.scene.afterUpdate';
 
-  static readonly BeforeRender = ['event', 'scene', Symbol('beforeRender')];
-  static readonly AfterRender = ['event', 'scene', Symbol('afterRender')];
+export const BeforeRender = 'gamerig.core.event.scene.beforeRender';
+export const AfterRender = 'gamerig.core.event.scene.afterRender';
 
-  static readonly Init = ['event', 'scene', Symbol('init')];
+export const Init = 'gamerig.core.event.scene.init';
 
-  static readonly Loading = ['event', 'scene', Symbol('loading')];
-  static readonly Loaded = ['event', 'scene', Symbol('loaded')];
-  static readonly LoadFailed = ['event', 'scene', Symbol('loadFailed')];
+export const Loading = 'gamerig.core.event.scene.loading';
+export const Loaded = 'gamerig.core.event.scene.loaded';
+export const LoadFailed = 'gamerig.core.event.scene.loadFailed';
 
-  static readonly Created = ['event', 'scene', Symbol('created')];
+export const Created = 'gamerig.core.event.scene.created';
 
-  static readonly Paused = ['event', 'scene', Symbol('paused')];
-  static readonly Resumed = ['event', 'scene', Symbol('resumed')];
+export const Paused = 'gamerig.core.event.scene.paused';
+export const Resumed = 'gamerig.core.event.scene.resumed';
 
-  static readonly Sleeping = ['event', 'scene', Symbol('sleeping')];
-  static readonly Woken = ['event', 'scene', Symbol('woken')];
+export const Sleeping = 'gamerig.core.event.scene.sleeping';
+export const Woken = 'gamerig.core.event.scene.woken';
 
-  static readonly Stopped = ['event', 'scene', Symbol('stopped')];
+export const Stopped = 'gamerig.core.event.scene.stopped';
 
-  static readonly Destroyed = ['event', 'scene', Symbol('destroyed')];
-}
+export const Destroyed = 'gamerig.core.event.scene.destroyed';

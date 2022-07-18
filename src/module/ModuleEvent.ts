@@ -1,3 +1,1 @@
-export class ModuleEvent {
-  static readonly Added = ['event', 'module', Symbol('added')];
-}
+export const Added = 'gamerig.core.event.module.added';

@@ -1,7 +1,5 @@
-export class EngineEvent {
-  static readonly Started = ['event', 'engine', Symbol('started')];
-  static readonly BeforeUpdate = ['event', 'engine', Symbol('beforeUpdate')];
-  static readonly AfterUpdate = ['event', 'engine', Symbol('afterUpdate')];
-  static readonly BeforeRender = ['event', 'engine', Symbol('beforeRender')];
-  static readonly AfterRender = ['event', 'engine', Symbol('afterRender')];
-}
+export const Started = 'gamerig.core.event.engine.started';
+export const BeforeUpdate = 'gamerig.core.event.engine.beforeUpdate';
+export const AfterUpdate = 'gamerig.core.event.engine.afterUpdate';
+export const BeforeRender = 'gamerig.core.event.engine.beforeRender';
+export const AfterRender = 'gamerig.core.event.engine.afterRender';

@@ -1,6 +1,6 @@
-import { IEngine } from '../engine/Engine';
+import { Engine } from '../engine/Engine';
 
 export interface Module {
-  init(engine: IEngine): void;
-  destroy(): void;
+  init?(engine: Engine): void;
+  destroy?(): void;
 }

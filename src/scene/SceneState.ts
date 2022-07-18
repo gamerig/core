@@ -1,3 +1,5 @@
+import { Scene } from './Scene';
+
 export enum SceneStatus {
   Pending = 0,
   Init,
@@ -12,14 +14,11 @@ export enum SceneStatus {
 
 export class SceneState {
   constructor(
-    private readonly _key: string,
+    readonly name: string,
+    readonly scene: Scene,
     private _status: SceneStatus = SceneStatus.Pending,
     private _visible = false,
   ) {}
-
-  get key(): string {
-    return this._key;
-  }
 
   get status(): SceneStatus {
     return this._status;

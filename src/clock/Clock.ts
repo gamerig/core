@@ -1,4 +1,4 @@
-import { TARGET_FPMS } from '../common/constants';
+const TARGET_FPS = 60;
 
 export class Clock {
   public deltaTime = 1;
@@ -24,8 +24,8 @@ export class Clock {
   private _tick: (time: number) => any;
 
   constructor(private readonly callback: (delta: number) => any) {
-    this.deltaMS = 1 / TARGET_FPMS;
-    this.elapsedMS = 1 / TARGET_FPMS;
+    this.deltaMS = 1000 / TARGET_FPS;
+    this.elapsedMS = 1000 / TARGET_FPS;
 
     this._tick = (time: number): void => {
       this._requestId = null;
@@ -98,7 +98,7 @@ export class Clock {
       }
 
       this.deltaMS = elapsedMS;
-      this.deltaTime = this.deltaMS * TARGET_FPMS;
+      this.deltaTime = this.deltaMS * (TARGET_FPS / 1000);
 
       this.callback(this.deltaTime);
     } else {
@@ -108,7 +108,7 @@ export class Clock {
     this.lastTime = currentTime;
   }
 
-  get FPS(): number {
+  get instantFPS(): number {
     return 1000 / this.elapsedMS;
   }
 
@@ -121,7 +121,7 @@ export class Clock {
     const minFPS = Math.min(this.maxFPS, fps);
 
     // Must be at least 0, but below 1 / settings.TARGET_FPMS
-    const minFPMS = Math.min(Math.max(0, minFPS) / 1000, TARGET_FPMS);
+    const minFPMS = Math.min(Math.max(0, minFPS) / 1000, TARGET_FPS / 1000);
 
     this._maxElapsedMS = 1 / minFPMS;
   }

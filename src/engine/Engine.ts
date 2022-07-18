@@ -1,175 +1,93 @@
 import { Clock } from '../clock/Clock';
-import { OpQueueItem, Provider } from '../common/types';
-import { IMessageBus, MessageBus } from '../messaging/MessageBus';
-import { ModuleManager } from '../module/ModuleManager';
-import { ResourceModule } from '../resource/ResourceModule';
-import { ISceneManager } from '../scene/SceneManager';
-import { SceneSystem } from '../scene/SceneSystem';
-import { System } from '../system/System';
-import { SystemManager, SystemPriority } from '../system/SystemManager';
-import { EngineEvent } from './EngineEvent';
-import { EngineSettings } from './EngineSettings';
+import { MessageBus } from '../messaging/MessageBus';
+import { Module, ModuleManager } from '../module';
+import { SceneManager, SceneSystem } from '../scene';
+import { System, SystemManager, SystemOptions, SystemPriority } from '../system';
+import { EngineEvent } from '.';
+import { Provider } from './types';
 
-export interface IEngine {
-  addSystem(system: System, priority?: number): void;
+export class Engine {
+  messaging: MessageBus;
+  scenes: SceneManager;
 
-  addProvider(provider: Provider): void;
-  resolve<T = any>(key: string | symbol): T;
-  resolveAll<T = any>(key: string | symbol): T[];
-
-  start(scene?: string | string[]): void;
-
-  started: boolean;
-  settings: EngineSettings;
-  messaging: IMessageBus;
-}
-
-export class Engine implements IEngine {
-  /** Does the engine has been started */
-  private _started = false;
-
-  /** Flag marking engine is currently handling system updates */
-  private _isProcessing = false;
-
-  /** Provide internal engine heartbeat */
   private _clock!: Clock;
 
-  /** Queue of engine commands to process at the beginning of each tick */
-  private _opQueue: OpQueueItem[] = [];
+  private _started = false;
 
-  private _messaging: IMessageBus;
+  private static modules: Module[] = [];
+  private static systems: { system: System; options?: Partial<SystemOptions> }[] = [];
 
-  /** Manage loaded modules */
-  private _modules: ModuleManager;
+  private moduleManager: ModuleManager;
+  private systemManager: SystemManager;
 
-  /** Store all systems in the order of priority */
-  private _systems: SystemManager;
+  private providers: { [name: string]: Provider[] } = {};
 
-  /** Primitive injection container where modules/systems can register services they provide */
-  private _container: Map<string | symbol, Provider[]> = new Map();
-
-  /**
-   * Engine initializations, required systems registration and module loading
-   * @param _settings
-   */
-  constructor(private readonly _settings: EngineSettings) {
+  constructor() {
     this._clock = new Clock(this.update);
 
-    this._messaging = new MessageBus();
-    this.addProvider({ key: IMessageBus.KEY, useValue: this._messaging });
+    this.messaging = new MessageBus();
 
-    this._systems = new SystemManager(this);
+    this.moduleManager = new ModuleManager(this);
+    this.systemManager = new SystemManager(this);
+    this.scenes = new SceneManager(this);
 
-    const sceneSys = new SceneSystem();
-    this._systems.addSystem(sceneSys, SystemPriority.NORMAL);
-
-    this.addProvider({ key: ISceneManager.KEY, useValue: sceneSys.manager });
-
-    this._modules = new ModuleManager(this);
+    Engine.registerSystem(new SceneSystem(this.scenes), { priority: SystemPriority.LOW });
   }
 
-  init = (): void => {
-    /**
-     * Modules are big chunks of functionality brought into the engine externally
-     * They can install other systems into the engine when initialized, hook into lifecycle events
-     * or do further engine configuration
-     */
-    const modules = this.settings.modules || [];
-    modules.unshift(ResourceModule);
-    this._modules.registerModules(modules);
+  static registerModule(module: Module): void {
+    Engine.modules.push(module);
+  }
 
-    /**
-     * Add list of scenes to the manager
-     */
-    const sceneManager = this.resolve<ISceneManager>(ISceneManager.KEY);
-    (this.settings.scenes || []).forEach(({ key, scene }) => sceneManager.add(key, scene));
-  };
+  static registerSystem(system: System, options?: Partial<SystemOptions>): void {
+    Engine.systems.push({ system, options });
+  }
 
-  /**
-   * Start engine if not already started
-   * Boot the starting scene and start the clock ticking
-   *
-   * @param scene
-   * @returns
-   */
-  start = (scene?: string | string[]): void => {
+  start = (): void => {
     if (this._started) {
       return;
     }
 
-    const sceneManager = this.resolve<ISceneManager>(ISceneManager.KEY);
-    const scenes = scene ? (Array.isArray(scene) ? scene : [scene]) : [];
+    Engine.modules.forEach((module) => this.moduleManager.add(module));
 
-    scenes.forEach((scene) => sceneManager.start(scene));
+    Engine.systems.forEach((system) =>
+      this.systemManager.add(system.system, {
+        priority: SystemPriority.NORMAL,
+        clockRate: 60,
+        ...system.options,
+      }),
+    );
 
     this._clock.start();
 
     this._started = true;
 
-    this._messaging.publish(EngineEvent.Started);
+    this.messaging.publish(EngineEvent.Started);
   };
 
-  /**
-   * Engine step function
-   * @param delta
-   */
   update = (delta: number): void => {
-    this._processQueue();
-
-    this._isProcessing = true;
-
     this.messaging.publish(EngineEvent.BeforeUpdate, this, delta);
 
-    this._systems.update(delta);
+    this.systemManager.update(delta);
 
     this.messaging.publish(EngineEvent.AfterUpdate, this, delta);
 
     this.messaging.publish(EngineEvent.BeforeRender, this);
 
-    this._systems.render();
+    this.systemManager.render();
 
     this.messaging.publish(EngineEvent.AfterRender, this);
-
-    this._isProcessing = false;
   };
 
-  /**
-   * Proxy method to system manager
-   * Queue operations if in the middle of an update step
-   * @param system
-   * @param priority
-   */
-  addSystem = (system: System, priority = SystemPriority.NORMAL): void => {
-    if (this._isProcessing) {
-      this._opQueue.push({
-        fn: this.addSystem,
-        args: [system, priority],
-      });
-
-      return;
+  registerProvider = (provider: Provider): void => {
+    if (!this.providers[provider.key]) {
+      this.providers[provider.key] = [];
     }
 
-    this._systems.addSystem(system, priority);
+    this.providers[provider.key]?.push(provider);
   };
 
-  /**
-   * Register a service in the container by a key
-   */
-  addProvider = (provider: Provider): void => {
-    if (!this._container.has(provider.key)) {
-      this._container.set(provider.key, []);
-    }
-
-    this._container.get(provider.key)?.push(provider);
-  };
-
-  /**
-   * Return a registered provider by key. If there are multiple providers, return the first one
-   * @param key
-   * @returns
-   */
-  resolve = <T = any>(key: string | symbol): T => {
-    const provider = this._container.get(key)?.[0];
+  resolve = <T = any>(key: string): T => {
+    const provider = this.providers[key]?.[0];
 
     if (!provider) {
       throw new Error(`Provider with name ${String(key)} not registered`);
@@ -178,13 +96,8 @@ export class Engine implements IEngine {
     return this._getProviderValue(provider);
   };
 
-  /**
-   * Return the entire list of providers registered for a key
-   * @param key
-   * @returns
-   */
-  resolveAll = <T = any>(key: string | symbol): T[] => {
-    const providers = this._container.get(key);
+  resolveAll = <T = any>(key: string): T[] => {
+    const providers = this.providers[key];
 
     if (!providers) {
       throw new Error(`Provider(s) with name ${String(key)} not registered`);
@@ -205,28 +118,7 @@ export class Engine implements IEngine {
     return provider.useValue;
   };
 
-  /**
-   * Started flag getter
-   */
   get started(): boolean {
     return this._started;
-  }
-
-  get settings(): EngineSettings {
-    return this._settings;
-  }
-
-  get messaging(): IMessageBus {
-    return this.resolve<IMessageBus>(IMessageBus.KEY);
-  }
-
-  /**
-   * Emtpy the op queue
-   */
-  private _processQueue(): void {
-    while (this._opQueue.length > 0) {
-      const op = this._opQueue.shift();
-      op?.fn(...op.args);
-    }
   }
 }
